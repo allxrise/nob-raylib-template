@@ -1,4 +1,5 @@
 -I./vendor/raylib/src 
+-I./vendor/box2d/include
 -I./src 
 -Wall
 -Wextra
