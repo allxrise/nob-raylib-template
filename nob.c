@@ -6,14 +6,17 @@
 typedef struct {
   const char *path;
   bool recursive;
+  bool pedantic;
 } Project_Folder;
 
-const char *common_flags[] = {"-DPLATFORM_DESKTOP",
-                              "-D_GLFW_X11",
-                              "-ggdb",
-                              "-I./vendor/raylib/src/",
-                              "-I./vendor/box2d/include/",
-                              "-I./src"};
+const char *common_flags[] = {
+    "-DPLATFORM_DESKTOP",
+    "-D_GLFW_X11",
+    "-ggdb",
+    "-I./vendor/raylib/src/",
+    "-I./vendor/box2d/include/",
+    "-I./src",
+};
 
 bool is_c_file(const char *path) {
   const char *ext = strrchr(path, '.');
@@ -34,7 +37,7 @@ bool mkdir_recursive(const char *path) {
   return mkdir_if_not_exists(temp_path);
 }
 
-bool collect_and_compile(const char *path, bool recursive,
+bool collect_and_compile(const char *path, bool recursive, bool pedantic,
                          File_Paths *obj_files) {
   File_Paths children = {0};
   if (!read_entire_dir(path, &children))
@@ -48,7 +51,7 @@ bool collect_and_compile(const char *path, bool recursive,
     File_Type type = get_file_type(full_path);
 
     if (type == FILE_DIRECTORY && recursive) {
-      if (!collect_and_compile(full_path, true, obj_files))
+      if (!collect_and_compile(full_path, true, pedantic, obj_files))
         return false;
     } else if (type == FILE_REGULAR && is_c_file(full_path)) {
       const char *no_dot_path = (full_path[0] == '.' && full_path[1] == '/')
@@ -68,6 +71,8 @@ bool collect_and_compile(const char *path, bool recursive,
       if (needs_rebuild(obj_path, &full_path, 1)) {
         Cmd cmd = {0};
         cmd_append(&cmd, "cc", "-c", full_path, "-o", obj_path);
+        if (pedantic)
+          cmd_append(&cmd, "-Wall", "-Wextra", "-Wpedantic");
         for (size_t j = 0; j < NOB_ARRAY_LEN(common_flags); ++j) {
           cmd_append(&cmd, common_flags[j]);
         }
@@ -81,9 +86,9 @@ bool collect_and_compile(const char *path, bool recursive,
 
 const char *out_exe = "./build/main";
 
-Project_Folder folders[] = {{"./src", true},
-                            {"./vendor/raylib/src", false},
-                            {"./vendor/box2d/src", true}};
+Project_Folder folders[] = {{"./src", true, true},
+                            {"./vendor/raylib/src", false, false},
+                            {"./vendor/box2d/src", true, false}};
 
 int main(int argc, char **argv) {
   GO_REBUILD_URSELF(argc, argv);
@@ -95,7 +100,7 @@ int main(int argc, char **argv) {
 
   for (size_t i = 0; i < NOB_ARRAY_LEN(folders); ++i) {
     if (!collect_and_compile(folders[i].path, folders[i].recursive,
-                             &object_files))
+                             folders[i].pedantic, &object_files))
       return 1;
   }
 
