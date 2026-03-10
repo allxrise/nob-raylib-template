@@ -1,4 +1,4 @@
--I./include 
+-I./vendor/raylib/src 
 -I./src 
 -Wall
 -Wextra
